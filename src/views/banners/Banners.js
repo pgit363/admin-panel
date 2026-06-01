@@ -28,18 +28,6 @@ import { awsUrl } from 'src/services/endpoints';
 import AlertModal from 'src/components/AlertModal';
 import { parseApiMessage } from 'src/utils/apiMessages';
 
-const STATUS_COLORS = {
-  pending: 'warning',
-  approved: 'success',
-  rejected: 'danger',
-  expired: 'secondary',
-  active: 'success',
-  inactive: 'secondary',
-};
-
-const DURATIONS = [1, 3, 5, 7];
-const LEVELS = ['carousel', 'middle', 'footer'];
-const ORIENTATIONS = ['potrait', 'landscape'];
 const BANNERABLE_TYPES = ['Site', 'City', 'Place'];
 
 const selectStyle = { color: '#212631', backgroundColor: '#fff' };
@@ -54,6 +42,9 @@ const emptyForm = {
   image_orientation: '',
   bannerable_type: '',
   bannerable_id: '',
+  banner_package_id: '',
+  banner_placement_id: '',
+  redirect_url: '',
   status: 1,
   meta_data: '',
 };
@@ -71,23 +62,53 @@ const Banners = () => {
   const [currentImageUrl, setCurrentImageUrl] = useState('');
   const [alert, setAlert] = useState(null);
 
-  const [statusFilter, setStatusFilter] = useState('');
-  const activeStatusFilter = useRef('');
+  const [filters, setFilters] = useState({ search: '', status: '', level: '', is_active: '', banner_package_id: '', banner_placement_id: '' });
+  const activeFilters = useRef({ search: '', status: '', level: '', is_active: '', banner_package_id: '', banner_placement_id: '' });
   const [searchTrigger, setSearchTrigger] = useState(0);
+
+  const [durations, setDurations] = useState([]);
+  const [levels, setLevels] = useState([]);
+  const [orientations, setOrientations] = useState([]);
+  const [packageFormDD, setPackageFormDD] = useState([]);
 
   useEffect(() => {
     fetchBanners(currentPage);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentPage, searchTrigger]);
 
+  useEffect(() => {
+    const fetchDropdowns = async () => {
+      try {
+        const [daysRes, levelsRes, orientRes, pkgRes] = await Promise.all([
+          apiService('POST', 'bannerDaysDD', {}),
+          apiService('POST', 'bannerLevelsDD', {}),
+          apiService('POST', 'bannerImageOrientationDD', {}),
+          apiService('POST', 'bannerFormDD', {}),
+        ]);
+        if (daysRes.success) setDurations(daysRes.data || []);
+        if (levelsRes.success) setLevels(levelsRes.data || []);
+        if (orientRes.success) setOrientations(orientRes.data || []);
+        if (pkgRes.success) setPackageFormDD(pkgRes.data || []);
+      } catch (_) {}
+    };
+    fetchDropdowns();
+  }, []);
+
   const showError = (msg) => setAlert({ type: 'danger', message: msg });
   const showSuccess = (msg) => setAlert({ type: 'success', message: msg });
   const clearAlert = () => setAlert(null);
 
-  const handleStatusSearch = () => {
-    activeStatusFilter.current = statusFilter;
+  const handleSearch = () => {
+    activeFilters.current = { ...filters };
     if (currentPage !== 1) setCurrentPage(1);
     else setSearchTrigger((t) => t + 1);
+  };
+
+  const handleClear = () => {
+    const empty = { search: '', status: '', level: '', is_active: '', banner_package_id: '', banner_placement_id: '' };
+    setFilters(empty);
+    activeFilters.current = empty;
+    setSearchTrigger((t) => t + 1);
   };
 
   // ─── List ─────────────────────────────────────────────────────────────────────
@@ -95,7 +116,13 @@ const Banners = () => {
   const fetchBanners = async (page) => {
     setLoading(true);
     const body = {};
-    if (activeStatusFilter.current) body.status = activeStatusFilter.current;
+    const f = activeFilters.current;
+    if (f.search) body.search = f.search;
+    if (f.status !== '') body.status = Number(f.status);
+    if (f.is_active !== '') body.is_active = Number(f.is_active);
+    if (f.level) body.level = f.level;
+    if (f.banner_package_id) body.banner_package_id = f.banner_package_id;
+    if (f.banner_placement_id) body.banner_placement_id = f.banner_placement_id;
     try {
       const data = await apiService('POST', `listBanners?page=${page}`, body);
       if (!data.success) { showError(parseApiMessage(data.message) || 'Failed to load banners'); return; }
@@ -117,28 +144,35 @@ const Banners = () => {
     setShowAddModal(true);
   };
 
+  const mapBannerToForm = (b) => ({
+    id: b.id,
+    name: b.name ?? '',
+    image: null,
+    start_date: b.start_date ? b.start_date.replace('T', ' ').slice(0, 19) : '',
+    duration: String(b.duration ?? ''),
+    level: b.level ?? '',
+    image_orientation: b.image_orientation ?? '',
+    bannerable_type: b.bannerable_type
+      ? b.bannerable_type.charAt(0).toUpperCase() + b.bannerable_type.slice(1)
+      : '',
+    bannerable_id: b.bannerable_id ?? '',
+    banner_package_id: b.package?.id ?? b.banner_package_id ?? '',
+    banner_placement_id: b.placement?.id ?? b.banner_placement_id ?? '',
+    redirect_url: b.redirect_url ?? '',
+    status: b.status ?? 1,
+    meta_data: b.meta_data ? JSON.stringify(b.meta_data) : '',
+  });
+
   const openEditModal = async (banner) => {
     setShowEditModal(true);
     setCurrentImageUrl(awsUrl(banner.image));
+    setFormData(mapBannerToForm(banner));
     setModalLoading(true);
     try {
       const data = await apiService('POST', 'getBanner', { id: banner.id });
       if (!data.success) { showError(parseApiMessage(data.message) || 'Failed to load banner'); return; }
-      const b = data.data;
-      setFormData({
-        id: b.id,
-        name: b.name ?? '',
-        image: null,
-        start_date: b.start_date ?? '',
-        duration: b.duration ?? '',
-        level: b.level ?? '',
-        image_orientation: b.image_orientation ?? '',
-        bannerable_type: b.bannerable_type ?? '',
-        bannerable_id: b.bannerable_id ?? '',
-        status: b.status ?? 1,
-        meta_data: b.meta_data ? JSON.stringify(b.meta_data) : '',
-      });
-      if (b.image) setCurrentImageUrl(awsUrl(b.image));
+      setFormData(mapBannerToForm(data.data));
+      if (data.data.image) setCurrentImageUrl(awsUrl(data.data.image));
     } catch (err) {
       showError(err.message);
     } finally {
@@ -164,6 +198,9 @@ const Banners = () => {
     if (formData.image_orientation) fd.append('image_orientation', formData.image_orientation);
     if (formData.bannerable_type) fd.append('bannerable_type', formData.bannerable_type);
     if (formData.bannerable_id) fd.append('bannerable_id', formData.bannerable_id);
+    if (formData.banner_package_id) fd.append('banner_package_id', formData.banner_package_id);
+    if (formData.banner_placement_id) fd.append('banner_placement_id', formData.banner_placement_id);
+    if (formData.redirect_url) fd.append('redirect_url', formData.redirect_url);
     fd.append('status', formData.status ? '1' : '0');
     if (formData.meta_data) fd.append('meta_data', formData.meta_data);
 
@@ -184,13 +221,19 @@ const Banners = () => {
   const handleUpdateBanner = async () => {
     const fd = new FormData();
     fd.append('id', formData.id);
-    // Only append image if a new file was selected — omitting preserves existing
-    if (formData.image) fd.append('image', formData.image);
-    if (formData.duration) fd.append('duration', formData.duration);
-    if (formData.level) fd.append('level', formData.level);
-    if (formData.image_orientation) fd.append('image_orientation', formData.image_orientation);
+    fd.append('name', formData.name);
+    fd.append('start_date', normalizeDate(formData.start_date));
+    fd.append('duration', formData.duration);
+    fd.append('level', formData.level);
+    fd.append('image_orientation', formData.image_orientation);
+    fd.append('bannerable_type', formData.bannerable_type);
+    fd.append('bannerable_id', formData.bannerable_id);
+    fd.append('banner_package_id', formData.banner_package_id);
+    fd.append('banner_placement_id', formData.banner_placement_id);
+    fd.append('redirect_url', formData.redirect_url);
     fd.append('status', formData.status ? '1' : '0');
-    if (formData.meta_data) fd.append('meta_data', formData.meta_data);
+    fd.append('meta_data', formData.meta_data);
+    if (formData.image) fd.append('image', formData.image);
 
     setModalLoading(true);
     try {
@@ -256,6 +299,49 @@ const Banners = () => {
           <CFormInput name="name" value={formData.name} onChange={handleInputChange} placeholder="Unique banner name" />
         </CCol>
         <CCol md={6}>
+          <CFormLabel>Package</CFormLabel>
+          <CFormSelect
+            name="banner_package_id"
+            value={formData.banner_package_id}
+            onChange={(e) => setFormData((p) => ({ ...p, banner_package_id: e.target.value, banner_placement_id: '' }))}
+            style={selectStyle}
+          >
+            <option value="" style={selectStyle}>Select package...</option>
+            {packageFormDD.map((pkg) => (
+              <option key={pkg.id} value={pkg.id} style={selectStyle}>{pkg.name} — ₹{pkg.price}</option>
+            ))}
+          </CFormSelect>
+        </CCol>
+        <CCol md={6}>
+          <CFormLabel>Placement</CFormLabel>
+          {(() => {
+            const pkg = packageFormDD.find((p) => String(p.id) === String(formData.banner_package_id));
+            const placements = pkg?.allowed_placements || [];
+            const selected = placements.find((pl) => String(pl.id) === String(formData.banner_placement_id));
+            return (
+              <>
+                <CFormSelect
+                  name="banner_placement_id"
+                  value={formData.banner_placement_id}
+                  onChange={handleInputChange}
+                  disabled={!formData.banner_package_id}
+                  style={selectStyle}
+                >
+                  <option value="" style={selectStyle}>Select placement...</option>
+                  {placements.map((pl) => (
+                    <option key={pl.id} value={pl.id} style={selectStyle}>{pl.code} ({pl.width}×{pl.height})</option>
+                  ))}
+                </CFormSelect>
+                {selected && (
+                  <div style={{ fontSize: 11, color: 'var(--cui-secondary-color)', marginTop: 3 }}>
+                    Recommended: {selected.width}×{selected.height}px — {selected.screen}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </CCol>
+        <CCol md={6}>
           <CFormLabel>Bannerable Type <span className="text-danger">*</span></CFormLabel>
           <CFormSelect name="bannerable_type" value={formData.bannerable_type} onChange={handleInputChange} style={selectStyle}>
             <option value="" style={selectStyle}>Select type...</option>
@@ -265,6 +351,10 @@ const Banners = () => {
         <CCol md={6}>
           <CFormLabel>Bannerable ID <span className="text-danger">*</span></CFormLabel>
           <CFormInput type="number" name="bannerable_id" value={formData.bannerable_id} onChange={handleInputChange} placeholder="ID of linked entity" />
+        </CCol>
+        <CCol md={12}>
+          <CFormLabel>Redirect URL</CFormLabel>
+          <CFormInput type="url" name="redirect_url" value={formData.redirect_url} onChange={handleInputChange} placeholder="https://tourkokan.com/..." />
         </CCol>
         <CCol md={6}>
           <CFormLabel>Start Date <span className="text-danger">*</span></CFormLabel>
@@ -279,21 +369,21 @@ const Banners = () => {
           <CFormLabel>Duration <span className="text-danger">*</span></CFormLabel>
           <CFormSelect name="duration" value={formData.duration} onChange={handleInputChange} style={selectStyle}>
             <option value="" style={selectStyle}>Select days...</option>
-            {DURATIONS.map((d) => <option key={d} value={d} style={selectStyle}>{d} day{d > 1 ? 's' : ''}</option>)}
+            {durations.map((d) => <option key={d.code} value={d.code} style={selectStyle}>{d.name}</option>)}
           </CFormSelect>
         </CCol>
         <CCol md={4}>
           <CFormLabel>Level <span className="text-danger">*</span></CFormLabel>
           <CFormSelect name="level" value={formData.level} onChange={handleInputChange} style={selectStyle}>
             <option value="" style={selectStyle}>Select level...</option>
-            {LEVELS.map((l) => <option key={l} value={l} style={selectStyle}>{l}</option>)}
+            {levels.map((l) => <option key={l.code} value={l.code} style={selectStyle}>{l.name}</option>)}
           </CFormSelect>
         </CCol>
         <CCol md={4}>
           <CFormLabel>Orientation <span className="text-danger">*</span></CFormLabel>
           <CFormSelect name="image_orientation" value={formData.image_orientation} onChange={handleInputChange} style={selectStyle}>
             <option value="" style={selectStyle}>Select...</option>
-            {ORIENTATIONS.map((o) => <option key={o} value={o} style={selectStyle}>{o}</option>)}
+            {orientations.map((o) => <option key={o.code} value={o.code} style={selectStyle}>{o.name}</option>)}
           </CFormSelect>
         </CCol>
         <CCol md={12}>
@@ -324,38 +414,96 @@ const Banners = () => {
   );
 
   // ─── Edit Form ────────────────────────────────────────────────────────────────
-  // name / bannerable_type / bannerable_id / start_date are not updatable per API spec
 
   const editForm = (
     <CForm>
       <CRow className="g-3">
-        {(formData.name || formData.bannerable_type) && (
-          <CCol md={12}>
-            <p className="mb-0 text-body-secondary" style={{ fontSize: 13 }}>
-              {formData.name && <><strong>{formData.name}</strong></>}
-              {formData.bannerable_type && <> &middot; {formData.bannerable_type} #{formData.bannerable_id}</>}
-            </p>
-          </CCol>
-        )}
+        <CCol md={6}>
+          <CFormLabel>Name</CFormLabel>
+          <CFormInput name="name" value={formData.name} onChange={handleInputChange} placeholder="Banner name" />
+        </CCol>
+        <CCol md={6}>
+          <CFormLabel>Start Date</CFormLabel>
+          <CFormInput
+            type="datetime-local"
+            name="start_date"
+            value={formData.start_date?.replace(' ', 'T').slice(0, 16) || ''}
+            onChange={(e) => setFormData((p) => ({ ...p, start_date: e.target.value.replace('T', ' ') + ':00' }))}
+          />
+        </CCol>
+        <CCol md={6}>
+          <CFormLabel>Package</CFormLabel>
+          <CFormSelect
+            name="banner_package_id"
+            value={formData.banner_package_id}
+            onChange={(e) => setFormData((p) => ({ ...p, banner_package_id: e.target.value, banner_placement_id: '' }))}
+            style={selectStyle}
+          >
+            <option value="" style={selectStyle}>Select package...</option>
+            {packageFormDD.map((pkg) => (
+              <option key={pkg.id} value={pkg.id} style={selectStyle}>{pkg.name} — ₹{pkg.price}</option>
+            ))}
+          </CFormSelect>
+        </CCol>
+        <CCol md={6}>
+          <CFormLabel>Placement</CFormLabel>
+          {(() => {
+            const pkg = packageFormDD.find((p) => String(p.id) === String(formData.banner_package_id));
+            const placements = pkg?.allowed_placements || [];
+            const selected = placements.find((pl) => String(pl.id) === String(formData.banner_placement_id));
+            return (
+              <>
+                <CFormSelect
+                  name="banner_placement_id"
+                  value={formData.banner_placement_id}
+                  onChange={handleInputChange}
+                  disabled={!formData.banner_package_id}
+                  style={selectStyle}
+                >
+                  <option value="" style={selectStyle}>Select placement...</option>
+                  {placements.map((pl) => (
+                    <option key={pl.id} value={pl.id} style={selectStyle}>{pl.code} ({pl.width}×{pl.height})</option>
+                  ))}
+                </CFormSelect>
+                {selected && (
+                  <div style={{ fontSize: 11, color: 'var(--cui-secondary-color)', marginTop: 3 }}>
+                    Recommended: {selected.width}×{selected.height}px — {selected.screen}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+        </CCol>
+        <CCol md={6}>
+          <CFormLabel>Bannerable Type</CFormLabel>
+          <CFormSelect name="bannerable_type" value={formData.bannerable_type} onChange={handleInputChange} style={selectStyle}>
+            <option value="" style={selectStyle}>Select type...</option>
+            {BANNERABLE_TYPES.map((t) => <option key={t} value={t} style={selectStyle}>{t}</option>)}
+          </CFormSelect>
+        </CCol>
+        <CCol md={6}>
+          <CFormLabel>Bannerable ID</CFormLabel>
+          <CFormInput type="number" name="bannerable_id" value={formData.bannerable_id} onChange={handleInputChange} placeholder="ID of linked entity" />
+        </CCol>
         <CCol md={4}>
           <CFormLabel>Duration</CFormLabel>
           <CFormSelect name="duration" value={formData.duration} onChange={handleInputChange} style={selectStyle}>
             <option value="" style={selectStyle}>Select days...</option>
-            {DURATIONS.map((d) => <option key={d} value={d} style={selectStyle}>{d} day{d > 1 ? 's' : ''}</option>)}
+            {durations.map((d) => <option key={d.code} value={d.code} style={selectStyle}>{d.name}</option>)}
           </CFormSelect>
         </CCol>
         <CCol md={4}>
           <CFormLabel>Level</CFormLabel>
           <CFormSelect name="level" value={formData.level} onChange={handleInputChange} style={selectStyle}>
             <option value="" style={selectStyle}>Select level...</option>
-            {LEVELS.map((l) => <option key={l} value={l} style={selectStyle}>{l}</option>)}
+            {levels.map((l) => <option key={l.code} value={l.code} style={selectStyle}>{l.name}</option>)}
           </CFormSelect>
         </CCol>
         <CCol md={4}>
           <CFormLabel>Orientation</CFormLabel>
           <CFormSelect name="image_orientation" value={formData.image_orientation} onChange={handleInputChange} style={selectStyle}>
             <option value="" style={selectStyle}>Select...</option>
-            {ORIENTATIONS.map((o) => <option key={o} value={o} style={selectStyle}>{o}</option>)}
+            {orientations.map((o) => <option key={o.code} value={o.code} style={selectStyle}>{o.name}</option>)}
           </CFormSelect>
         </CCol>
         <CCol md={12}>
@@ -382,6 +530,10 @@ const Banners = () => {
           </div>
         </CCol>
         <CCol md={12}>
+          <CFormLabel>Redirect URL</CFormLabel>
+          <CFormInput type="url" name="redirect_url" value={formData.redirect_url} onChange={handleInputChange} placeholder="https://tourkokan.com/..." />
+        </CCol>
+        <CCol md={12}>
           <CFormLabel>Meta Data <span className="text-body-secondary" style={{ fontSize: 12 }}>(JSON, optional)</span></CFormLabel>
           <CFormInput name="meta_data" value={formData.meta_data} onChange={handleInputChange} placeholder='{"url": "https://example.com"}' />
         </CCol>
@@ -397,29 +549,53 @@ const Banners = () => {
         {/* Toolbar */}
         <CCard className="mb-3">
           <CCardBody>
-            <CForm className="row g-3 align-items-end" onSubmit={(e) => { e.preventDefault(); handleStatusSearch(); }}>
+            <CForm className="row g-3 align-items-end" onSubmit={(e) => { e.preventDefault(); handleSearch(); }}>
               <CCol md={3}>
-                <CFormLabel className="mb-1">Status</CFormLabel>
-                <CFormSelect value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectStyle}>
+                <CFormLabel className="mb-1">Search</CFormLabel>
+                <CFormInput
+                  placeholder="Banner name..."
+                  value={filters.search}
+                  onChange={(e) => setFilters((p) => ({ ...p, search: e.target.value }))}
+                />
+              </CCol>
+              <CCol md={2}>
+                <CFormLabel className="mb-1">Level</CFormLabel>
+                <CFormSelect value={filters.level} onChange={(e) => setFilters((p) => ({ ...p, level: e.target.value }))} style={selectStyle}>
                   <option value="" style={selectStyle}>All</option>
-                  <option value="pending" style={selectStyle}>Pending</option>
-                  <option value="approved" style={selectStyle}>Approved</option>
-                  <option value="rejected" style={selectStyle}>Rejected</option>
-                  <option value="expired" style={selectStyle}>Expired</option>
+                  {levels.map((l) => <option key={l.code} value={l.code} style={selectStyle}>{l.name}</option>)}
+                </CFormSelect>
+              </CCol>
+              <CCol md={2}>
+                <CFormLabel className="mb-1">Package</CFormLabel>
+                <CFormSelect value={filters.banner_package_id} onChange={(e) => setFilters((p) => ({ ...p, banner_package_id: e.target.value, banner_placement_id: '' }))} style={selectStyle}>
+                  <option value="" style={selectStyle}>All</option>
+                  {packageFormDD.map((pkg) => <option key={pkg.id} value={pkg.id} style={selectStyle}>{pkg.name}</option>)}
+                </CFormSelect>
+              </CCol>
+              <CCol md={2}>
+                <CFormLabel className="mb-1">Placement</CFormLabel>
+                <CFormSelect value={filters.banner_placement_id} onChange={(e) => setFilters((p) => ({ ...p, banner_placement_id: e.target.value }))} style={selectStyle}>
+                  <option value="" style={selectStyle}>All</option>
+                  {(filters.banner_package_id
+                    ? (packageFormDD.find((p) => String(p.id) === String(filters.banner_package_id))?.allowed_placements || [])
+                    : packageFormDD.flatMap((p) => p.allowed_placements || []).filter((v, i, a) => a.findIndex((x) => x.id === v.id) === i)
+                  ).map((pl) => <option key={pl.id} value={pl.id} style={selectStyle}>{pl.code}</option>)}
+                </CFormSelect>
+              </CCol>
+              <CCol md={2}>
+                <CFormLabel className="mb-1">Status</CFormLabel>
+                <CFormSelect value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))} style={selectStyle}>
+                  <option value="" style={selectStyle}>All</option>
+                  <option value="1" style={selectStyle}>Active</option>
+                  <option value="0" style={selectStyle}>Inactive</option>
                 </CFormSelect>
               </CCol>
               <CCol md="auto">
                 <CButton color="primary" type="submit">Filter</CButton>
               </CCol>
-              {activeStatusFilter.current && (
-                <CCol md="auto">
-                  <CButton color="secondary" variant="outline" onClick={() => {
-                    setStatusFilter('');
-                    activeStatusFilter.current = '';
-                    setSearchTrigger((t) => t + 1);
-                  }}>Clear</CButton>
-                </CCol>
-              )}
+              <CCol md="auto">
+                <CButton color="secondary" variant="outline" onClick={handleClear}>Clear</CButton>
+              </CCol>
               <CCol className="ms-auto" md="auto">
                 {total > 0 && <span className="text-body-secondary me-3" style={{ fontSize: 13 }}>{total} banners</span>}
               </CCol>
@@ -458,8 +634,8 @@ const Banners = () => {
                         </div>
                       )}
                       <div style={{ position: 'absolute', top: 8, right: 8 }}>
-                        <CBadge color={STATUS_COLORS[banner.status] || 'secondary'} shape="rounded-pill" style={{ textTransform: 'capitalize' }}>
-                          {banner.status}
+                        <CBadge color={banner.is_active ? 'success' : 'secondary'} shape="rounded-pill">
+                          {banner.is_active ? 'Active' : 'Inactive'}
                         </CBadge>
                       </div>
                       {banner.level && (
@@ -479,42 +655,55 @@ const Banners = () => {
                     {/* Info + Actions */}
                     <CCardBody className="p-3">
                       <strong style={{ fontSize: 14, display: 'block' }}>{banner.name}</strong>
-                      <div className="d-flex flex-wrap gap-2 my-2" style={{ fontSize: 12, color: 'var(--cui-secondary-color)' }}>
+
+                      {/* Package + Placement */}
+                      <div className="d-flex flex-wrap gap-1 my-1">
+                        {banner.package?.name && (
+                          <CBadge color="primary" shape="rounded-pill" style={{ fontSize: 11 }}>{banner.package.name}</CBadge>
+                        )}
+                        {banner.placement?.code && (
+                          <CBadge color="info" shape="rounded-pill" style={{ fontSize: 11 }}>{banner.placement.description || banner.placement.code}</CBadge>
+                        )}
+                        {banner.bannerable_type && (
+                          <CBadge color="secondary" shape="rounded-pill" style={{ fontSize: 11 }}>
+                            {banner.bannerable_type} #{banner.bannerable_id}
+                          </CBadge>
+                        )}
+                      </div>
+
+                      {/* Dates + duration */}
+                      <div className="d-flex flex-wrap gap-2 my-1" style={{ fontSize: 12, color: 'var(--cui-secondary-color)' }}>
                         {banner.start_date && (
                           <span><CIcon icon={cilCalendar} size="sm" className="me-1" />{banner.start_date.slice(0, 10)}</span>
+                        )}
+                        {banner.end_date && (
+                          <span>→ {banner.end_date.slice(0, 10)}</span>
                         )}
                         {banner.duration != null && (
                           <span>{banner.duration} day{banner.duration > 1 ? 's' : ''}</span>
                         )}
                       </div>
-                      {banner.bannerable_type && (
-                        <div className="mb-2">
-                          <CBadge color="secondary" shape="rounded-pill" style={{ fontSize: 11 }}>
-                            {banner.bannerable_type} #{banner.bannerable_id}
-                          </CBadge>
+
+                      {/* Impressions + Clicks */}
+                      {(banner.impressions != null || banner.clicks != null) && (
+                        <div className="d-flex gap-3 mb-1" style={{ fontSize: 12, color: 'var(--cui-secondary-color)' }}>
+                          {banner.impressions != null && <span>👁 {banner.impressions.toLocaleString()}</span>}
+                          {banner.clicks != null && <span>🖱 {banner.clicks.toLocaleString()}</span>}
                         </div>
                       )}
 
-                      {/* Status workflow */}
-                      {(banner.status === 'pending' || banner.status === 'approved' || banner.status === 'rejected') && (
-                        <div className="d-flex flex-wrap gap-1 mb-2">
-                          {banner.status !== 'approved' && (
-                            <CButton color="success" size="sm" variant="outline" onClick={() => handleChangeStatus(banner.id, 'approved')}>
-                              <CIcon icon={cilCheck} size="sm" className="me-1" />Approve
-                            </CButton>
-                          )}
-                          {banner.status !== 'rejected' && (
-                            <CButton color="danger" size="sm" variant="outline" onClick={() => handleChangeStatus(banner.id, 'rejected')}>
-                              <CIcon icon={cilBan} size="sm" className="me-1" />Reject
-                            </CButton>
-                          )}
-                          {banner.status === 'approved' && (
-                            <CButton color="secondary" size="sm" variant="outline" onClick={() => handleChangeStatus(banner.id, 'expired')}>
-                              <CIcon icon={cilClock} size="sm" className="me-1" />Expire
-                            </CButton>
-                          )}
-                        </div>
-                      )}
+                      {/* Approve / Reject / Expire */}
+                      <div className="d-flex flex-wrap gap-1 mb-2">
+                        <CButton color="success" size="sm" variant="outline" onClick={() => handleChangeStatus(banner.id, 'approved')}>
+                          <CIcon icon={cilCheck} size="sm" className="me-1" />Approve
+                        </CButton>
+                        <CButton color="danger" size="sm" variant="outline" onClick={() => handleChangeStatus(banner.id, 'rejected')}>
+                          <CIcon icon={cilBan} size="sm" className="me-1" />Reject
+                        </CButton>
+                        <CButton color="secondary" size="sm" variant="outline" onClick={() => handleChangeStatus(banner.id, 'expired')}>
+                          <CIcon icon={cilClock} size="sm" className="me-1" />Expire
+                        </CButton>
+                      </div>
 
                       <div className="d-flex gap-2 mt-auto pt-1">
                         <CButton color="warning" size="sm" className="flex-fill" onClick={() => openEditModal(banner)}>

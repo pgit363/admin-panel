@@ -42,7 +42,7 @@ export default defineConfig(({ mode }) => {
       extensions: ['.mjs', '.js', '.ts', '.jsx', '.tsx', '.json', '.scss'],
     },
     server: {
-      port: 3000,
+      port: 3002,
       proxy: {
         '/admin/v2': {
           target: backendUrl,
