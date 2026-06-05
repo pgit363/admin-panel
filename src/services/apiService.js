@@ -38,6 +38,7 @@ const apiService = async (method, endpoint, body = null) => {
     headers: {
       Authorization: `Bearer ${token}`,
       'Content-Type': 'application/json',
+      'X-App-Source': 'admin',
     },
   };
 

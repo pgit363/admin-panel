@@ -8,6 +8,7 @@ import {
   cilDescription,
   cilDrop,
   cilEnvelopeClosed,
+  cilGraph,
   cilNotes,
   cilPencil,
   cilPuzzle,
@@ -27,6 +28,23 @@ const _nav = [
       color: 'info',
       text: 'NEW',
     },
+  },
+  {
+    component: CNavTitle,
+    name: 'Analytics',
+  },
+  {
+    component: CNavGroup,
+    name: 'Analytics',
+    to: '/analytics',
+    icon: <CIcon icon={cilGraph} customClassName="nav-icon" />,
+    items: [
+      { component: CNavItem, name: 'Dashboard', to: '/analytics' },
+      { component: CNavItem, name: 'Overview', to: '/analytics/overview' },
+      { component: CNavItem, name: 'Trending Content', to: '/analytics/trending' },
+      { component: CNavItem, name: 'Activity Logs', to: '/analytics/activity-logs' },
+      { component: CNavItem, name: 'Login History', to: '/analytics/login-history' },
+    ],
   },
   {
     component: CNavTitle,

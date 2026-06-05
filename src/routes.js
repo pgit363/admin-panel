@@ -54,6 +54,11 @@ const Comments = React.lazy(() => import('./views/comments/Comments'))
 const Messages = React.lazy(() => import('./views/messages/Messages'))
 const Events = React.lazy(() => import('./views/events/Events'))
 const UserRoleRequests = React.lazy(() => import('./views/userRoleRequests/UserRoleRequests'))
+const AnalyticsDashboard = React.lazy(() => import('./views/analytics/AnalyticsDashboard'))
+const AnalyticsOverview = React.lazy(() => import('./views/analytics/AnalyticsOverview'))
+const TrendingContent = React.lazy(() => import('./views/analytics/TrendingContent'))
+const ActivityLogs = React.lazy(() => import('./views/analytics/ActivityLogs'))
+const LoginHistory = React.lazy(() => import('./views/analytics/LoginHistory'))
 
 // Icons
 const CoreUIIcons = React.lazy(() => import('./views/icons/coreui-icons/CoreUIIcons'))
@@ -132,6 +137,11 @@ const routes = [
   { path: '/messages', name: 'Messages', element: Messages },
   { path: '/events', name: 'Events', element: Events },
   { path: '/role-requests', name: 'Role Requests', element: UserRoleRequests },
+  { path: '/analytics', name: 'Analytics Dashboard', element: AnalyticsDashboard },
+  { path: '/analytics/overview', name: 'Analytics Overview', element: AnalyticsOverview },
+  { path: '/analytics/trending', name: 'Trending Content', element: TrendingContent },
+  { path: '/analytics/activity-logs', name: 'Activity Logs', element: ActivityLogs },
+  { path: '/analytics/login-history', name: 'Login History', element: LoginHistory },
 ]
 
 export default routes
