@@ -19,11 +19,13 @@
     "dev": "vite",
     "dev:remote": "vite --mode dev",
     "dev:test": "vite --mode test",
+    "dev:prod": "vite --mode production",
     "start": "vite",
     "predeploy": "npm run build",
     "deploy": "gh-pages -d build",
     "build:test": "vite build --mode test",
-    "deploy:cf": "npm run build:test && npx wrangler pages deploy build --project-name=tourkokan-admin"
+    "deploy:test": "npm run build:test && npx wrangler pages deploy build --project-name=test-tourkokan-admin --branch=test",
+    "deploy:prod": "npm run build && npx wrangler pages deploy build --project-name=prod-tourkokan-admin --branch=master"
   },
   "dependencies": {
     "@coreui/chartjs": "^4.0.0",
