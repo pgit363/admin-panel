@@ -23,14 +23,27 @@ import {
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
 import { cilBan, cilCalendar, cilCheck, cilClock, cilImage, cilLayers, cilPencil, cilTrash } from '@coreui/icons';
+import Select from 'react-select';
 import apiService from 'src/services/apiService';
 import { awsUrl } from 'src/services/endpoints';
 import AlertModal from 'src/components/AlertModal';
 import { parseApiMessage } from 'src/utils/apiMessages';
+import reactSelectStyles from './reactSelectStyles';
 
 const BANNERABLE_TYPES = ['Site', 'City', 'Place'];
 
 const selectStyle = { color: '#212631', backgroundColor: '#fff' };
+
+const STATUS_BADGES = {
+  approved: { color: 'success', label: 'Approved' },
+  pending: { color: 'warning', label: 'Pending' },
+  rejected: { color: 'danger', label: 'Rejected' },
+  expired: { color: 'dark', label: 'Expired' },
+};
+
+// status column holds approval strings (package flow) or 1/0 (admin-created)
+const statusBadge = (s) =>
+  STATUS_BADGES[s] || (Number(s) ? { color: 'success', label: 'Enabled' } : { color: 'secondary', label: 'Disabled' });
 
 const emptyForm = {
   id: '',
@@ -42,10 +55,11 @@ const emptyForm = {
   image_orientation: '',
   bannerable_type: '',
   bannerable_id: '',
+  bannerable_name: '',
   banner_package_id: '',
   banner_placement_id: '',
   redirect_url: '',
-  status: 1,
+  status: 0,
   meta_data: '',
 };
 
@@ -70,6 +84,8 @@ const Banners = () => {
   const [levels, setLevels] = useState([]);
   const [orientations, setOrientations] = useState([]);
   const [packageFormDD, setPackageFormDD] = useState([]);
+  const [siteOptions, setSiteOptions] = useState([]);
+  const [siteLoading, setSiteLoading] = useState(false);
 
   useEffect(() => {
     fetchBanners(currentPage);
@@ -97,6 +113,30 @@ const Banners = () => {
   const showError = (msg) => setAlert({ type: 'danger', message: msg });
   const showSuccess = (msg) => setAlert({ type: 'success', message: msg });
   const clearAlert = () => setAlert(null);
+
+  const fetchSites = async (search = '') => {
+    setSiteLoading(true);
+    try {
+      const body = { apitype: 'dropdown' };
+      // backend validates search as alpha-only
+      const term = search.replace(/[^A-Za-z]/g, '');
+      if (term) body.search = term;
+      const data = await apiService('POST', 'sites', body);
+      if (data.success) {
+        const list = Array.isArray(data.data) ? data.data : (data.data.data || []);
+        setSiteOptions(list.map((s) => ({ value: s.id, label: s.name })));
+      }
+    } catch (_) {
+    } finally {
+      setSiteLoading(false);
+    }
+  };
+
+  const handleTypeChange = (e) => {
+    const value = e.target.value;
+    setFormData((prev) => ({ ...prev, bannerable_type: value, bannerable_id: '', bannerable_name: '' }));
+    if (value === 'Site' && siteOptions.length === 0) fetchSites();
+  };
 
   const handleSearch = () => {
     activeFilters.current = { ...filters };
@@ -156,6 +196,7 @@ const Banners = () => {
       ? b.bannerable_type.charAt(0).toUpperCase() + b.bannerable_type.slice(1)
       : '',
     bannerable_id: b.bannerable_id ?? '',
+    bannerable_name: b.bannerable?.name ?? '',
     banner_package_id: b.package?.id ?? b.banner_package_id ?? '',
     banner_placement_id: b.placement?.id ?? b.banner_placement_id ?? '',
     redirect_url: b.redirect_url ?? '',
@@ -167,6 +208,7 @@ const Banners = () => {
     setShowEditModal(true);
     setCurrentImageUrl(awsUrl(banner.image));
     setFormData(mapBannerToForm(banner));
+    if (String(banner.bannerable_type).toLowerCase() === 'site' && siteOptions.length === 0) fetchSites();
     setModalLoading(true);
     try {
       const data = await apiService('POST', 'getBanner', { id: banner.id });
@@ -188,7 +230,25 @@ const Banners = () => {
     return s.length === 16 ? s + ':00' : s;
   };
 
+  const validateBannerForm = (isEdit) => {
+    const errors = [];
+    if (!formData.name.trim()) errors.push('Name is required.');
+    if (!isEdit && !formData.image) errors.push('Image is required.');
+    if (!formData.start_date) errors.push('Start date is required.');
+    if (!formData.duration) errors.push('Duration is required.');
+    if (!formData.level) errors.push('Level is required.');
+    if (!formData.image_orientation) errors.push('Orientation is required.');
+    if (!formData.bannerable_type) errors.push('Bannerable type is required.');
+    if (!formData.bannerable_id) errors.push('Linked entity is required.');
+    if (formData.meta_data) {
+      try { JSON.parse(formData.meta_data); } catch { errors.push('Meta data must be valid JSON.'); }
+    }
+    return errors;
+  };
+
   const handleAddBanner = async () => {
+    const errors = validateBannerForm(false);
+    if (errors.length) { showError(errors.join('\n')); return; }
     const fd = new FormData();
     if (formData.name) fd.append('name', formData.name);
     if (formData.image) fd.append('image', formData.image);
@@ -219,6 +279,8 @@ const Banners = () => {
   };
 
   const handleUpdateBanner = async () => {
+    const errors = validateBannerForm(true);
+    if (errors.length) { showError(errors.join('\n')); return; }
     const fd = new FormData();
     fd.append('id', formData.id);
     fd.append('name', formData.name);
@@ -289,6 +351,39 @@ const Banners = () => {
 
   const orientationHeight = (o) => o === 'potrait' ? 300 : 180;
 
+  // Site has a dropdown API; City/Place have no list endpoint, so fall back to a numeric ID input
+  const bannerableIdField = () => {
+    if (formData.bannerable_type === 'Site') {
+      const selected = siteOptions.find((o) => String(o.value) === String(formData.bannerable_id));
+      return (
+        <Select
+          options={siteOptions}
+          isLoading={siteLoading}
+          value={formData.bannerable_id
+            ? (selected || { value: formData.bannerable_id, label: formData.bannerable_name || `Site #${formData.bannerable_id}` })
+            : null}
+          onChange={(opt) => setFormData((p) => ({ ...p, bannerable_id: opt ? opt.value : '', bannerable_name: opt ? opt.label : '' }))}
+          onInputChange={(input, { action }) => { if (action === 'input-change') fetchSites(input); }}
+          styles={reactSelectStyles}
+          placeholder="Search site by name..."
+          isClearable
+          menuPortalTarget={document.body}
+          menuPosition="fixed"
+        />
+      );
+    }
+    return (
+      <>
+        <CFormInput type="number" name="bannerable_id" value={formData.bannerable_id} onChange={handleInputChange} placeholder="Numeric ID of linked entity" />
+        {(formData.bannerable_type === 'City' || formData.bannerable_type === 'Place') && (
+          <div style={{ fontSize: 11, color: 'var(--cui-secondary-color)', marginTop: 3 }}>
+            No {formData.bannerable_type.toLowerCase()} list API — enter the database ID manually
+          </div>
+        )}
+      </>
+    );
+  };
+
   // ─── Add Form ─────────────────────────────────────────────────────────────────
 
   const addForm = (
@@ -343,14 +438,14 @@ const Banners = () => {
         </CCol>
         <CCol md={6}>
           <CFormLabel>Bannerable Type <span className="text-danger">*</span></CFormLabel>
-          <CFormSelect name="bannerable_type" value={formData.bannerable_type} onChange={handleInputChange} style={selectStyle}>
+          <CFormSelect name="bannerable_type" value={formData.bannerable_type} onChange={handleTypeChange} style={selectStyle}>
             <option value="" style={selectStyle}>Select type...</option>
             {BANNERABLE_TYPES.map((t) => <option key={t} value={t} style={selectStyle}>{t}</option>)}
           </CFormSelect>
         </CCol>
         <CCol md={6}>
-          <CFormLabel>Bannerable ID <span className="text-danger">*</span></CFormLabel>
-          <CFormInput type="number" name="bannerable_id" value={formData.bannerable_id} onChange={handleInputChange} placeholder="ID of linked entity" />
+          <CFormLabel>Linked {formData.bannerable_type || 'Entity'} <span className="text-danger">*</span></CFormLabel>
+          {bannerableIdField()}
         </CCol>
         <CCol md={12}>
           <CFormLabel>Redirect URL</CFormLabel>
@@ -476,14 +571,14 @@ const Banners = () => {
         </CCol>
         <CCol md={6}>
           <CFormLabel>Bannerable Type</CFormLabel>
-          <CFormSelect name="bannerable_type" value={formData.bannerable_type} onChange={handleInputChange} style={selectStyle}>
+          <CFormSelect name="bannerable_type" value={formData.bannerable_type} onChange={handleTypeChange} style={selectStyle}>
             <option value="" style={selectStyle}>Select type...</option>
             {BANNERABLE_TYPES.map((t) => <option key={t} value={t} style={selectStyle}>{t}</option>)}
           </CFormSelect>
         </CCol>
         <CCol md={6}>
-          <CFormLabel>Bannerable ID</CFormLabel>
-          <CFormInput type="number" name="bannerable_id" value={formData.bannerable_id} onChange={handleInputChange} placeholder="ID of linked entity" />
+          <CFormLabel>Linked {formData.bannerable_type || 'Entity'}</CFormLabel>
+          {bannerableIdField()}
         </CCol>
         <CCol md={4}>
           <CFormLabel>Duration</CFormLabel>
@@ -550,7 +645,7 @@ const Banners = () => {
         <CCard className="mb-3">
           <CCardBody>
             <CForm className="row g-3 align-items-end" onSubmit={(e) => { e.preventDefault(); handleSearch(); }}>
-              <CCol md={3}>
+              <CCol md={2}>
                 <CFormLabel className="mb-1">Search</CFormLabel>
                 <CFormInput
                   placeholder="Banner name..."
@@ -585,6 +680,14 @@ const Banners = () => {
               <CCol md={2}>
                 <CFormLabel className="mb-1">Status</CFormLabel>
                 <CFormSelect value={filters.status} onChange={(e) => setFilters((p) => ({ ...p, status: e.target.value }))} style={selectStyle}>
+                  <option value="" style={selectStyle}>All</option>
+                  <option value="1" style={selectStyle}>Enabled</option>
+                  <option value="0" style={selectStyle}>Disabled</option>
+                </CFormSelect>
+              </CCol>
+              <CCol md={2}>
+                <CFormLabel className="mb-1">Active</CFormLabel>
+                <CFormSelect value={filters.is_active} onChange={(e) => setFilters((p) => ({ ...p, is_active: e.target.value }))} style={selectStyle}>
                   <option value="" style={selectStyle}>All</option>
                   <option value="1" style={selectStyle}>Active</option>
                   <option value="0" style={selectStyle}>Inactive</option>
@@ -656,8 +759,12 @@ const Banners = () => {
                     <CCardBody className="p-3">
                       <strong style={{ fontSize: 14, display: 'block' }}>{banner.name}</strong>
 
-                      {/* Package + Placement */}
+                      {/* Approval status + Package + Placement */}
                       <div className="d-flex flex-wrap gap-1 my-1">
+                        {banner.status != null && (() => {
+                          const sb = statusBadge(banner.status);
+                          return <CBadge color={sb.color} shape="rounded-pill" style={{ fontSize: 11 }}>{sb.label}</CBadge>;
+                        })()}
                         {banner.package?.name && (
                           <CBadge color="primary" shape="rounded-pill" style={{ fontSize: 11 }}>{banner.package.name}</CBadge>
                         )}
@@ -666,7 +773,7 @@ const Banners = () => {
                         )}
                         {banner.bannerable_type && (
                           <CBadge color="secondary" shape="rounded-pill" style={{ fontSize: 11 }}>
-                            {banner.bannerable_type} #{banner.bannerable_id}
+                            {banner.bannerable_type}: {banner.bannerable?.name || `#${banner.bannerable_id}`}
                           </CBadge>
                         )}
                       </div>

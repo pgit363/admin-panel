@@ -26,28 +26,7 @@ import Select from 'react-select';
 import apiService from 'src/services/apiService';
 import AlertModal from 'src/components/AlertModal';
 import { parseApiMessage } from 'src/utils/apiMessages';
-
-const selectStyle = {
-  control: (base, state) => ({
-    ...base, backgroundColor: '#fff', color: '#212631',
-    borderColor: state.isFocused ? '#998fed' : '#b1b7c1',
-    boxShadow: state.isFocused ? '0 0 0 0.25rem rgba(50,31,219,.25)' : 'none',
-    minHeight: 36,
-  }),
-  menu: (base) => ({ ...base, backgroundColor: '#fff', zIndex: 9999 }),
-  menuPortal: (base) => ({ ...base, zIndex: 9999 }),
-  option: (base, state) => ({
-    ...base,
-    backgroundColor: state.isSelected ? '#321fdb' : state.isFocused ? 'rgba(0,0,21,.05)' : '#fff',
-    color: state.isSelected ? '#fff' : '#212631',
-  }),
-  multiValue: (base) => ({ ...base, backgroundColor: 'rgba(50,31,219,.12)' }),
-  multiValueLabel: (base) => ({ ...base, color: '#321fdb' }),
-  multiValueRemove: (base) => ({ ...base, color: '#321fdb', ':hover': { backgroundColor: '#321fdb', color: '#fff' } }),
-  singleValue: (base) => ({ ...base, color: '#212631' }),
-  input: (base) => ({ ...base, color: '#212631' }),
-  placeholder: (base) => ({ ...base, color: '#9da5b1' }),
-};
+import selectStyle from './reactSelectStyles';
 
 const emptyForm = {
   id: '',
@@ -112,7 +91,7 @@ const BannerPackages = () => {
         placementsLoaded.current = true;
       }
     } catch (err) {
-      console.error('Error loading placements:', err);
+      showError(`Failed to load placements: ${err.message}`);
     }
   };
 
@@ -157,7 +136,18 @@ const BannerPackages = () => {
     is_active: formData.is_active,
   });
 
+  const validateForm = () => {
+    const errors = [];
+    if (!formData.name.trim()) errors.push('Package name is required.');
+    if (formData.price === '' || Number(formData.price) < 0) errors.push('Price must be 0 or more.');
+    if (!formData.duration_days || Number(formData.duration_days) < 1) errors.push('Duration must be at least 1 day.');
+    if (!formData.allowed_placements.length) errors.push('Select at least one placement.');
+    return errors;
+  };
+
   const handleAdd = async () => {
+    const errors = validateForm();
+    if (errors.length) { showError(errors.join('\n')); return; }
     setModalLoading(true);
     try {
       const data = await apiService('POST', 'addBannerPackage', buildPayload());
@@ -173,6 +163,8 @@ const BannerPackages = () => {
   };
 
   const handleUpdate = async () => {
+    const errors = validateForm();
+    if (errors.length) { showError(errors.join('\n')); return; }
     setModalLoading(true);
     try {
       const data = await apiService('POST', 'updateBannerPackage', buildPayload());
