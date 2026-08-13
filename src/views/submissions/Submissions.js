@@ -95,7 +95,8 @@ const Submissions = () => {
       const data = await apiService('POST', 'approveSite', { id });
       if (!data.success) { showError(parseApiMessage(data.message)); return; }
       showSuccess(data.message || 'Site approved.');
-      setSubmissions((prev) => prev.map((s) => s.id === id ? { ...s, submission_status: 'approved' } : s));
+      // approveSite auto-marks a vendor's first approved site as primary
+      setSubmissions((prev) => prev.map((s) => s.id === id ? { ...s, submission_status: 'approved', is_primary: data.data?.is_primary ?? s.is_primary } : s));
     } catch (err) {
       showError(err.message);
     } finally {
@@ -175,6 +176,9 @@ const Submissions = () => {
                       <CBadge color={STATUS_COLORS[s.submission_status] || 'secondary'} shape="rounded-pill">
                         {s.submission_status || 'unknown'}
                       </CBadge>
+                      {s.is_primary && (
+                        <CBadge color="primary" shape="rounded-pill">Primary</CBadge>
+                      )}
                       {s.meta_data?.resubmission && (
                         <CBadge color="warning" shape="rounded-pill">Resubmitted</CBadge>
                       )}

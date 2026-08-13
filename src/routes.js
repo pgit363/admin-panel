@@ -54,6 +54,10 @@ const Comments = React.lazy(() => import('./views/comments/Comments'))
 const Messages = React.lazy(() => import('./views/messages/Messages'))
 const Events = React.lazy(() => import('./views/events/Events'))
 const UserRoleRequests = React.lazy(() => import('./views/userRoleRequests/UserRoleRequests'))
+const ProductModeration = React.lazy(() => import('./views/products/ProductModeration'))
+const ProductCategories = React.lazy(() => import('./views/products/ProductCategories'))
+const Plans = React.lazy(() => import('./views/plans/Plans'))
+const Subscriptions = React.lazy(() => import('./views/plans/Subscriptions'))
 const AnalyticsDashboard = React.lazy(() => import('./views/analytics/AnalyticsDashboard'))
 const AnalyticsOverview = React.lazy(() => import('./views/analytics/AnalyticsOverview'))
 const TrendingContent = React.lazy(() => import('./views/analytics/TrendingContent'))
@@ -137,6 +141,10 @@ const routes = [
   { path: '/messages', name: 'Messages', element: Messages },
   { path: '/events', name: 'Events', element: Events },
   { path: '/role-requests', name: 'Role Requests', element: UserRoleRequests },
+  { path: '/products', name: 'Product Moderation', element: ProductModeration },
+  { path: '/product-categories', name: 'Product Categories', element: ProductCategories },
+  { path: '/plans', name: 'Plans', element: Plans },
+  { path: '/subscriptions', name: 'Subscriptions', element: Subscriptions },
   { path: '/analytics', name: 'Analytics Dashboard', element: AnalyticsDashboard },
   { path: '/analytics/overview', name: 'Analytics Overview', element: AnalyticsOverview },
   { path: '/analytics/trending', name: 'Trending Content', element: TrendingContent },

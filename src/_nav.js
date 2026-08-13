@@ -105,6 +105,18 @@ const _nav = [
     ],
   },
   {
+    component: CNavGroup,
+    name: 'Vendor Products',
+    to: '/products',
+    icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
+    items: [
+      { component: CNavItem, name: 'Product Moderation', to: '/products' },
+      { component: CNavItem, name: 'Product Categories', to: '/product-categories' },
+      { component: CNavItem, name: 'Plans', to: '/plans' },
+      { component: CNavItem, name: 'Subscriptions', to: '/subscriptions' },
+    ],
+  },
+  {
     component: CNavTitle,
     name: 'MSRTC',
   },
