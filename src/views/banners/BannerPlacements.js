@@ -108,6 +108,7 @@ const BannerPlacements = () => {
   };
 
   const handleAdd = async () => {
+    if (!formData.code.trim()) { showError('Code is required.'); return; }
     setModalLoading(true);
     try {
       const data = await apiService('POST', 'addBannerPlacement', {
@@ -132,9 +133,9 @@ const BannerPlacements = () => {
   const handleUpdate = async () => {
     setModalLoading(true);
     try {
+      // code is immutable after creation — packages reference placements by code string
       const data = await apiService('POST', 'updateBannerPlacement', {
         id: formData.id,
-        ...(formData.code && { code: formData.code }),
         ...(formData.description && { description: formData.description }),
         ...(formData.screen && { screen: formData.screen }),
         ...(formData.width && { width: parseInt(formData.width) }),
@@ -174,9 +175,10 @@ const BannerPlacements = () => {
             value={formData.code}
             onChange={handleInputChange}
             placeholder="e.g. carousel, footer"
+            disabled={showEditModal}
           />
           <div style={{ fontSize: 11, color: 'var(--cui-secondary-color)', marginTop: 3 }}>
-            Lowercase slug, no spaces
+            {showEditModal ? 'Code cannot be changed — packages reference it' : 'Lowercase slug, no spaces'}
           </div>
         </CCol>
         <CCol md={6}>

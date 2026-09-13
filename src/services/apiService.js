@@ -18,6 +18,11 @@ const handleResponse = async (response) => {
     }
     throw new Error('Session expired. Please log in again.');
   }
+  if (response.status === 403) {
+    // Middleware-level rejection: /admin/v2/* now requires the admin role.
+    // Real HTTP 403, no `success` key — comes from middleware, not BaseController.
+    throw new Error('Access Forbidden — your account does not have the admin role required for this action.');
+  }
   if (response.status === 429) {
     const data = await response.json();
     throw new Error(data.message || 'Too many requests. Please slow down and try again later.');

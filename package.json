@@ -22,8 +22,8 @@
     "dev:prod": "vite --mode production",
     "start": "vite",
     "build:test": "vite build --mode test",
-    "deploy:test": "npm run build:test && npx wrangler pages deploy build --project-name=test-tourkokan-admin --branch=test",
-    "deploy:prod": "npm run build && npx wrangler pages deploy build --project-name=prod-tourkokan-admin --branch=master"
+    "deploy:test": "npm run build:test && npx wrangler pages deploy build --project-name=test-admin-panel --branch=test",
+    "deploy:prod": "npm run build && npx wrangler pages deploy build --project-name=admin-panel --branch=master"
   },
   "dependencies": {
     "@coreui/chartjs": "^4.0.0",
