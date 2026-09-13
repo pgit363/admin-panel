@@ -10,7 +10,12 @@ export const publicApiService = async (endpoint) => {
 const handleResponse = async (response) => {
   if (response.status === 401) {
     localStorage.removeItem('token');
-    window.location.hash = '#/login';
+    // Notify App so the route guards re-evaluate against the now-missing token,
+    // otherwise the stale `isAuthenticated` bounces /login back to /dashboard.
+    window.dispatchEvent(new Event('auth-change'));
+    if (!window.location.hash.startsWith('#/login')) {
+      window.location.hash = '#/login';
+    }
     throw new Error('Session expired. Please log in again.');
   }
   if (response.status === 429) {

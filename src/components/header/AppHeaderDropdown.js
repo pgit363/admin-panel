@@ -31,6 +31,7 @@ const AppHeaderDropdown = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('token')
+    window.dispatchEvent(new Event('auth-change'))
     navigate('/login')
   }
 

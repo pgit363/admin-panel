@@ -17,14 +17,24 @@ const Page500 = React.lazy(() => import('./views/pages/page500/Page500'));
 const App = () => {
   const { isColorModeSet, setColorMode } = useColorModes('coreui-free-react-admin-template-theme');
   const storedTheme = useSelector((state) => state.theme);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // Derive auth from the token itself so the state can never go stale — a
+  // stale `true` after token expiry causes the /login → /dashboard bounce loop.
+  const [isAuthenticated, setIsAuthenticated] = useState(() => !!localStorage.getItem('token'));
 
   useEffect(() => {
-    const myToken = localStorage.getItem('token');
-    if (myToken) {
-      setIsAuthenticated(true);
-    }
+    // Keep auth state synced with the token whenever it changes: cross-tab via
+    // the native `storage` event, same-tab (e.g. the 401 handler clearing it)
+    // via our own `auth-change` event.
+    const syncAuth = () => setIsAuthenticated(!!localStorage.getItem('token'));
+    window.addEventListener('storage', syncAuth);
+    window.addEventListener('auth-change', syncAuth);
+    return () => {
+      window.removeEventListener('storage', syncAuth);
+      window.removeEventListener('auth-change', syncAuth);
+    };
+  }, []);
 
+  useEffect(() => {
     const urlParams = new URLSearchParams(window.location.href.split('?')[1]);
     const theme = urlParams.get('theme') && urlParams.get('theme').match(/^[A-Za-z0-9\s]+/)[0];
     if (theme) {
