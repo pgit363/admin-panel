@@ -63,14 +63,10 @@ const _nav = [
     icon: <CIcon icon={cilChartPie} customClassName="nav-icon" />,
   },
   {
-    component: CNavGroup,
+    component: CNavItem,
     name: 'Sites',
     to: '/sites',
     icon: <CIcon icon={cilChartPie} customClassName="nav-icon" />,
-    items: [
-      { component: CNavItem, name: 'All Sites', to: '/sites' },
-      { component: CNavItem, name: 'Submissions', to: '/submissions' },
-    ],
   },
   {
     component: CNavGroup,
@@ -105,12 +101,21 @@ const _nav = [
     ],
   },
   {
+    component: CNavTitle,
+    name: 'Vendor Management',
+  },
+  {
+    // Full vendor funnel in approval order: a user requests the vendor role,
+    // gets a site approved, then products approved, then a plan/subscription.
     component: CNavGroup,
-    name: 'Vendor Products',
+    name: 'Vendor Management',
     to: '/products',
     icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
     items: [
-      { component: CNavItem, name: 'Product Moderation', to: '/products' },
+      { component: CNavItem, name: '1. Users', to: '/users' },
+      { component: CNavItem, name: '2. Role Requests', to: '/role-requests' },
+      { component: CNavItem, name: '3. Site Submissions', to: '/submissions' },
+      { component: CNavItem, name: '4. Product Moderation', to: '/products' },
       { component: CNavItem, name: 'Product Categories', to: '/product-categories' },
       { component: CNavItem, name: 'Plans', to: '/plans' },
       { component: CNavItem, name: 'Subscriptions', to: '/subscriptions' },
@@ -170,11 +175,6 @@ const _nav = [
         name: 'Queries',
         to: '/queries',
         icon: <CIcon icon={cilDrop} customClassName="nav-icon" />,
-      },
-      {
-        component: CNavItem,
-        name: 'Role Requests',
-        to: '/role-requests',
       },
     ],
   },

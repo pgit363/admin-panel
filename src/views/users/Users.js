@@ -21,7 +21,7 @@ import {
   CSpinner,
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
-import { cilBadge, cilChartPie, cilEnvelopeClosed, cilLockLocked, cilPhone, cilUser } from '@coreui/icons';
+import { cilBadge, cilChartPie, cilEnvelopeClosed, cilPhone, cilUser } from '@coreui/icons';
 import apiService from 'src/services/apiService';
 import { awsUrl } from 'src/services/endpoints';
 import AlertModal from 'src/components/AlertModal';
@@ -91,6 +91,24 @@ const Users = () => {
     if (!g) return 'secondary';
     if (g.toLowerCase() === 'male') return 'info';
     if (g.toLowerCase() === 'female') return 'danger';
+    return 'secondary';
+  };
+
+  // Show the full timestamp (date + time), not just the date.
+  const fmtDateTime = (val) => {
+    if (!val) return '—';
+    const d = new Date(val.replace(' ', 'T'));
+    if (isNaN(d.getTime())) return val;
+    return d.toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true,
+    });
+  };
+
+  const sourceColor = (s) => {
+    if (s === 'web') return 'info';
+    if (s === 'android') return 'success';
+    if (s === 'ios') return 'primary';
     return 'secondary';
   };
 
@@ -205,6 +223,7 @@ const Users = () => {
                   <CCol xs={12} md={5}>
                     <div className="d-flex align-items-center gap-2 mb-1 flex-wrap">
                       <strong style={{ fontSize: 15 }}>{user.name}</strong>
+                      <span className="text-body-secondary" style={{ fontSize: 12 }}>#{user.id}</span>
                       {Array.isArray(user.roles)
                         ? user.roles.map((r) => (
                             <CBadge key={r.id} color="primary" shape="rounded-pill">{r.name}</CBadge>
@@ -216,47 +235,40 @@ const Users = () => {
                       {user.gender && (
                         <CBadge color={genderColor(user.gender)} shape="rounded-pill">{user.gender}</CBadge>
                       )}
-                      {user.isVerified == 1 && (
-                        <CBadge color="success" shape="rounded-pill">
-                          <CIcon icon={cilBadge} className="me-1" size="sm" />Verified
-                        </CBadge>
-                      )}
+                      <CBadge color={user.isVerified == 1 ? 'success' : 'secondary'} shape="rounded-pill">
+                        <CIcon icon={cilBadge} className="me-1" size="sm" />{user.isVerified == 1 ? 'Verified' : 'Unverified'}
+                      </CBadge>
                     </div>
                     <div className="d-flex flex-wrap gap-3" style={{ fontSize: 13, color: 'var(--cui-secondary-color)' }}>
-                      {user.email && (
-                        <span><CIcon icon={cilEnvelopeClosed} size="sm" className="me-1" />{user.email}</span>
-                      )}
-                      {user.mobile && (
-                        <span><CIcon icon={cilPhone} size="sm" className="me-1" />{user.mobile}</span>
-                      )}
+                      <span>
+                        <CIcon icon={cilEnvelopeClosed} size="sm" className="me-1" />{user.email || '—'}
+                      </span>
+                      <span>
+                        <CIcon icon={cilPhone} size="sm" className="me-1" />{user.mobile || '—'}
+                      </span>
                     </div>
                   </CCol>
 
-                  {/* Secondary Info */}
+                  {/* Secondary Info — every remaining API field */}
                   <CCol xs={12} md={4}>
-                    <div className="d-flex flex-wrap gap-3" style={{ fontSize: 13, color: 'var(--cui-secondary-color)' }}>
-                      {user.language && <span>Language: {user.language}</span>}
-                      {user.dob && <span>DOB: {user.dob}</span>}
-                      {user.uid && (
-                        <span>
-                          <CIcon icon={cilLockLocked} size="sm" className="me-1" />
-                          Ref: {user.uid}
-                        </span>
-                      )}
+                    <div className="d-flex flex-wrap gap-3 mb-1" style={{ fontSize: 13, color: 'var(--cui-secondary-color)' }}>
+                      <span>Gender: {user.gender || '—'}</span>
+                      <span>DOB: {user.dob || '—'}</span>
+                      <span>
+                        Source:{' '}
+                        {user.registered_from
+                          ? <CBadge color={sourceColor(user.registered_from)} shape="rounded-pill">{user.registered_from}</CBadge>
+                          : '—'}
+                      </span>
                     </div>
-                    {user.email_verified_at && (
-                      <div style={{ fontSize: 12, color: 'var(--cui-secondary-color)', marginTop: 4 }}>
-                        Email verified: {user.email_verified_at.slice(0, 10)}
-                      </div>
-                    )}
+                    <div style={{ fontSize: 12, color: 'var(--cui-secondary-color)' }}>
+                      Registered: {fmtDateTime(user.created_at)}
+                    </div>
                   </CCol>
 
-                  {/* Joined + usage */}
+                  {/* Actions */}
                   <CCol xs={12} md={2} className="text-end">
-                    <div style={{ fontSize: 11, color: 'var(--cui-secondary-color)' }}>
-                      Joined {user.created_at?.slice(0, 10)}
-                    </div>
-                    <CButton color="info" variant="outline" size="sm" className="mt-2" onClick={() => openUsage(user.id)}>
+                    <CButton color="info" variant="outline" size="sm" onClick={() => openUsage(user.id)}>
                       <CIcon icon={cilChartPie} size="sm" className="me-1" />Usage
                     </CButton>
                   </CCol>
@@ -301,7 +313,7 @@ const Users = () => {
               </div>
               {usage.subscription && (
                 <div className="text-body-secondary mb-3" style={{ fontSize: 12 }}>
-                  {usage.subscription.starts_at?.slice(0, 10)} → {usage.subscription.ends_at?.slice(0, 10) || 'never expires'}
+                  {fmtDateTime(usage.subscription.starts_at)} → {usage.subscription.ends_at ? fmtDateTime(usage.subscription.ends_at) : 'never expires'}
                 </div>
               )}
 
