@@ -64,7 +64,7 @@ const LoginHistory = () => {
     setLoading(true);
     try {
       const f = activeFilters.current;
-      const body = { per_page: 50 };
+      const body = { per_page: 30 };
       if (f.user_id) body.user_id = Number(f.user_id);
       if (f.platform) body.platform = f.platform;
       if (f.date_from) body.date_from = f.date_from;

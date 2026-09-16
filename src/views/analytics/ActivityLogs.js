@@ -73,7 +73,7 @@ const ActivityLogs = () => {
     setLoading(true);
     try {
       const f = activeFilters.current;
-      const body = { per_page: 50 };
+      const body = { per_page: 30 };
       if (f.search) body.search = f.search;
       if (f.user_id) body.user_id = Number(f.user_id);
       if (f.event_type) body.event_type = f.event_type;
