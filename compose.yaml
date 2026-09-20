@@ -1,0 +1,64 @@
+# admin-panel — static SPA container.
+#
+# This service has NO genuine dependency to declare: the repo contains no
+# database, cache or queue, and the Laravel backend it talks to lives in a
+# separate repo with its own compose file. Inventing a `backend:` service here
+# would duplicate that and drift from it, so instead this joins the backend's
+# network by name (see the commented block at the bottom).
+
+services:
+  admin-panel:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Relative bases => the browser calls this container, nginx forwards to
+        # BACKEND_ORIGIN. Keeps one image usable against any backend and dodges
+        # CORS. Override to bake absolute URLs (e.g. the api.tourkokan.com
+        # production build) if you want the Cloudflare Pages behaviour instead.
+        VITE_ADMIN_API_BASE: /admin/v2
+        VITE_PUBLIC_API_BASE: /api/v2
+    image: tourkokan/admin-panel:local
+    ports:
+      # Host 3010 chosen deliberately: 8000/8001 belong to another account's
+      # apps, and 8010 / 5432 / 11434 / 8080 are taken by the AI repo's stack.
+      # Container side is 8080 because the unprivileged nginx base runs as uid
+      # 101 and cannot bind port 80.
+      - "3010:8080"
+    environment:
+      # The ONLY run-time knob. Everything else about this app was frozen into
+      # the JS bundle at build time.
+      #
+      # Points at the backend as seen from inside the container:
+      #   - same compose network: http://<service-name>:<port>
+      #   - backend on the host:  http://host.docker.internal:8001
+      #     (works under Colima; verify if you switch container runtimes)
+      #   - remote:               https://api-test.tourkokan.com
+      BACKEND_ORIGIN: ${BACKEND_ORIGIN:-http://host.docker.internal:8001}
+    restart: unless-stopped
+    # No `platform:` pin on purpose. Both base images (node:20-alpine,
+    # nginxinc/nginx-unprivileged:1.27-alpine) are multi-arch, so Docker
+    # already picks the host architecture — native arm64 on Colima/Apple
+    # Silicon here, native amd64 on an x86 CI box. Hardcoding linux/arm64
+    # would force slow qemu emulation everywhere except this laptop.
+    healthcheck:
+      # Repeated from the Dockerfile so `docker compose ps` reports health even
+      # when the image is pulled rather than built here.
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/"]
+      interval: 30s
+      timeout: 3s
+      start_period: 5s
+      retries: 3
+    extra_hosts:
+      # Colima/Docker Desktop resolve this automatically on some versions only;
+      # pinning it makes the "backend runs on the host" case work everywhere.
+      - "host.docker.internal:host-gateway"
+
+# To run against the backend's containers instead of the host, start the
+# backend stack first, then uncomment below and set
+# BACKEND_ORIGIN=http://<backend-service-name>:8000
+#
+# networks:
+#   default:
+#     name: tourkokan-backend_default
+#     external: true

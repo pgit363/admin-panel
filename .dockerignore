@@ -1,0 +1,63 @@
+# Build context exclusions. Keep this tight: node_modules alone is ~274 MB of
+# macOS-native binaries (@esbuild/darwin-arm64, @rollup/rollup-darwin-arm64),
+# which would either break or silently poison a linux image if copied in.
+
+# Dependencies — always reinstalled inside the image for the target platform.
+node_modules
+**/node_modules
+
+# Prior build output. A stale ./build in the working tree would be copied over
+# the freshly built one otherwise.
+build
+dist
+coverage
+
+# VCS / editor / OS
+.git
+.gitignore
+.gitattributes
+.github
+.idea
+.vscode
+.DS_Store
+**/.DS_Store
+.eslintcache
+
+# Every .env file is excluded on purpose.
+#
+# Two reasons:
+#  1. .env.local is untracked and machine-specific (it points at
+#     127.0.0.1:8001). If it leaked into the build context Vite would load it
+#     in *every* mode and bake a localhost URL into the image.
+#  2. Keeping all of them out makes the image's configuration explicit: the
+#     only inputs are the VITE_* build args in the Dockerfile. No hidden file
+#     can change what gets inlined into the bundle.
+#
+# The tracked .env files hold no secrets (public URLs only) — their values are
+# reproduced as ARG defaults in the Dockerfile.
+.env
+.env.*
+
+# Cloudflare Pages state — the current deploy path, irrelevant to the image.
+.wrangler
+
+# Docs and scratch material — not part of the artifact.
+doc
+refernce_doc
+README.md
+LICENSE
+
+# Docker files themselves don't need to be inside the image.
+# nginx/ is deliberately NOT excluded — the runtime stage COPYs the config
+# template out of it.
+Dockerfile
+.dockerignore
+compose.yaml
+DOCKER.md
+
+# Tooling config that only matters outside the container.
+.claude
+.prettierrc.js
+.prettierignore
+.editorconfig
+.eslintrc.js
