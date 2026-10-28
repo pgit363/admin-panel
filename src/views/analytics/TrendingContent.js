@@ -159,8 +159,8 @@ const TrendingContent = () => {
         title="Top Routes Searched"
         data={routes}
         columns={[
-          { key: 'source_id', label: 'Source ID' },
-          { key: 'destination_id', label: 'Destination ID' },
+          { key: 'source_id', label: 'Source', render: (r) => r.source_name ?? r.source_id ?? '—' },
+          { key: 'destination_id', label: 'Destination', render: (r) => r.destination_name ?? r.destination_id ?? '—' },
           { key: 'search_count', label: 'Searches', align: 'end', render: (r) => r.search_count?.toLocaleString() },
           { key: 'unique_users', label: 'Unique Users', align: 'end', render: (r) => r.unique_users?.toLocaleString() },
         ]}
