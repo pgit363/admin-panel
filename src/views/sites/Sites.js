@@ -23,7 +23,7 @@ import {
   CSpinner,
 } from '@coreui/react';
 import CIcon from '@coreui/icons-react';
-import { cilLocationPin, cilPencil, cilTrash, cilGlobeAlt, cilTag } from '@coreui/icons';
+import { cilLocationPin, cilPencil, cilTrash, cilGlobeAlt, cilTag, cilImage } from '@coreui/icons';
 import apiService from 'src/services/apiService';
 import AlertModal from 'src/components/AlertModal';
 import DropdownSearch from '../../components/DropdownSearch';
@@ -31,6 +31,7 @@ import MultiSelectDropdown from '../../components/MultiSelectDropdown';
 import ExpandableText from '../../components/ExpandableText';
 import { awsUrl } from 'src/services/endpoints';
 import { parseApiMessage } from 'src/utils/apiMessages';
+import SiteGalleryModal from './SiteGalleryModal';
 
 const emptyForm = {
   id: '',
@@ -64,6 +65,7 @@ const Sites = () => {
   const [alert, setAlert] = useState(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [gallerySite, setGallerySite] = useState(null);
   const [initialFormData, setInitialFormData] = useState({});
   const [formData, setFormData] = useState(emptyForm);
 
@@ -564,6 +566,13 @@ const Sites = () => {
                         <CIcon icon={cilPencil} className="me-1" />Edit
                       </CButton>
                       <CButton
+                        color="info"
+                        size="sm"
+                        onClick={() => setGallerySite(site)}
+                      >
+                        <CIcon icon={cilImage} className="me-1" />Gallery
+                      </CButton>
+                      <CButton
                         color="danger"
                         size="sm"
                         onClick={() => handleDeleteSite(site.id)}
@@ -622,6 +631,13 @@ const Sites = () => {
           </CButton>
         </CModalFooter>
       </CModal>
+      <SiteGalleryModal
+        site={gallerySite}
+        visible={!!gallerySite}
+        onClose={() => setGallerySite(null)}
+        onError={showError}
+        onSuccess={showSuccess}
+      />
       <AlertModal alert={alert} onClose={clearAlert} />
 
     </CRow>
