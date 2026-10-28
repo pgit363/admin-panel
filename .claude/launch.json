@@ -4,8 +4,24 @@
     {
       "name": "admin-panel-local",
       "runtimeExecutable": "npm",
-      "runtimeArgs": ["run", "dev"],
+      "runtimeArgs": [
+        "run",
+        "dev"
+      ],
       "port": 3002
+    },
+    {
+      "name": "admin-panel-test",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "run",
+        "dev:test",
+        "--",
+        "--port",
+        "3004",
+        "--strictPort"
+      ],
+      "port": 3004
     }
   ]
 }
