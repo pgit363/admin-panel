@@ -56,6 +56,7 @@ const Events = React.lazy(() => import('./views/events/Events'))
 const UserRoleRequests = React.lazy(() => import('./views/userRoleRequests/UserRoleRequests'))
 const ProductModeration = React.lazy(() => import('./views/products/ProductModeration'))
 const ProductCategories = React.lazy(() => import('./views/products/ProductCategories'))
+const VerificationModeration = React.lazy(() => import('./views/verifications/VerificationModeration'))
 const Plans = React.lazy(() => import('./views/plans/Plans'))
 const Subscriptions = React.lazy(() => import('./views/plans/Subscriptions'))
 const AnalyticsDashboard = React.lazy(() => import('./views/analytics/AnalyticsDashboard'))
@@ -142,6 +143,7 @@ const routes = [
   { path: '/events', name: 'Events', element: Events },
   { path: '/role-requests', name: 'Role Requests', element: UserRoleRequests },
   { path: '/products', name: 'Product Moderation', element: ProductModeration },
+  { path: '/verifications', name: 'Verifications', element: VerificationModeration },
   { path: '/product-categories', name: 'Product Categories', element: ProductCategories },
   { path: '/plans', name: 'Plans', element: Plans },
   { path: '/subscriptions', name: 'Subscriptions', element: Subscriptions },

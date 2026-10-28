@@ -115,6 +115,7 @@ const _nav = [
       { component: CNavItem, name: '1. Users', to: '/users' },
       { component: CNavItem, name: '2. Role Requests', to: '/role-requests' },
       { component: CNavItem, name: '3. Site Submissions', to: '/submissions' },
+      { component: CNavItem, name: 'Verifications', to: '/verifications' },
       { component: CNavItem, name: '4. Product Moderation', to: '/products' },
       { component: CNavItem, name: 'Product Categories', to: '/product-categories' },
       { component: CNavItem, name: 'Plans', to: '/plans' },
