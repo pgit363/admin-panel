@@ -1,0 +1,149 @@
+# Rendered by the nginx image entrypoint: every ${VAR} below is replaced with
+# the matching environment variable (envsubst) before nginx starts. nginx's own
+# runtime variables ($uri, $request_uri, ...) are left alone because they are
+# not environment variables.
+
+server {
+    # 8080, not 80: the unprivileged base image runs as uid 101 and cannot bind
+    # a privileged port.
+    listen 8080;
+    server_name _;
+
+    root /usr/share/nginx/html;
+    index index.html;
+
+    # Needed because proxy_pass below uses a variable, which defers upstream
+    # resolution to request time. Without this the container would refuse to
+    # START whenever the backend host is absent ("host not found in upstream");
+    # with it, nginx boots fine and API calls return 502 until the backend
+    # appears.
+    #
+    # NGINX_LOCAL_RESOLVERS is exported by the base image's own
+    # 15-local-resolvers.envsh, enabled via NGINX_ENTRYPOINT_LOCAL_RESOLVERS in
+    # the Dockerfile. It is read from /etc/resolv.conf at startup rather than
+    # hardcoded: the address is 127.0.0.11 on a compose/user-defined network
+    # but the host's DNS (e.g. 192.168.5.1) on the default bridge, and picking
+    # the wrong one makes every proxied request time out.
+    # ipv6=off avoids pointless AAAA lookups.
+    resolver ${NGINX_LOCAL_RESOLVERS} ipv6=off valid=10s;
+
+    # Don't advertise the exact nginx version.
+    server_tokens off;
+
+    gzip on;
+    gzip_vary on;
+    gzip_min_length 1024;
+    gzip_types text/plain text/css application/javascript application/json
+               image/svg+xml font/woff font/woff2;
+
+    # ---------------------------------------------------------------------
+    # API proxy
+    # ---------------------------------------------------------------------
+    # Only does anything when the bundle was built with RELATIVE API bases
+    # (the Dockerfile default). In that setup the browser calls this same
+    # origin, so there is no cross-origin preflight for the app's
+    # `Authorization: Bearer` / `X-App-Source: admin` headers.
+    #
+    # If the image was built with absolute URLs (api.tourkokan.com), these two
+    # blocks are simply never hit, and the backend's own CORS policy has to
+    # allow the container's origin instead.
+    #
+    # Mirrors the /admin/v2 and /api/v2 rules in vite.config.mjs, which exist
+    # only in the dev server and disappear in a production build.
+    location /admin/v2/ {
+        set $upstream "${BACKEND_ORIGIN}";
+        # $request_uri must be appended explicitly: when proxy_pass contains a
+        # variable, nginx does NOT pass the original URI through automatically.
+        proxy_pass $upstream$request_uri;
+        proxy_http_version 1.1;
+        # $proxy_host (the host from proxy_pass), not $host: a remote backend
+        # is name-based virtual hosting and needs its own hostname in Host, or
+        # it serves the wrong vhost. For a compose service this is just
+        # "backend:8000", which is what a container upstream expects anyway.
+        proxy_set_header Host              $proxy_host;
+        # Send SNI when BACKEND_ORIGIN is https:// — without it the TLS
+        # handshake against a shared-IP host fails and every call 502s.
+        proxy_ssl_server_name on;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        # Admin exports/imports can be slow; the default 60s is tight for them.
+        proxy_read_timeout 120s;
+        # No WebSocket upgrade handling here: this app has zero WebSocket use
+        # (no socket.io / laravel-echo / pusher / ws:// anywhere in src/).
+        # Every backend call is plain fetch() over HTTP.
+    }
+
+    location /api/v2/ {
+        set $upstream "${BACKEND_ORIGIN}";
+        proxy_pass $upstream$request_uri;
+        proxy_http_version 1.1;
+        # $proxy_host (the host from proxy_pass), not $host: a remote backend
+        # is name-based virtual hosting and needs its own hostname in Host, or
+        # it serves the wrong vhost. For a compose service this is just
+        # "backend:8000", which is what a container upstream expects anyway.
+        proxy_set_header Host              $proxy_host;
+        # Send SNI when BACKEND_ORIGIN is https:// — without it the TLS
+        # handshake against a shared-IP host fails and every call 502s.
+        proxy_ssl_server_name on;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+
+    # ---------------------------------------------------------------------
+    # Static assets
+    # ---------------------------------------------------------------------
+    # Vite emits content-hashed filenames under /assets, so they are safe to
+    # cache permanently.
+    #
+    # One add_header rather than `expires 1y` + add_header: both emit a
+    # Cache-Control, and using them together sends the header TWICE
+    # (max-age=31536000 and public, immutable as separate lines).
+    location /assets/ {
+        add_header Cache-Control "public, max-age=31536000, immutable" always;
+        # Repeated from the server block on purpose — see the note there:
+        # a location with its own add_header inherits NONE of the parent's.
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+        try_files $uri =404;
+    }
+
+    # index.html must never be cached, or clients keep loading a stale bundle
+    # that references deleted hashed assets after a redeploy.
+    #
+    # This block is also what serves "/" and every SPA fallback, because
+    # try_files issues an internal redirect to /index.html which re-enters
+    # location matching here. So the security headers MUST be repeated below,
+    # or the app's own HTML — the one response where X-Frame-Options actually
+    # matters — ships with none of them. (Verified: without these, `curl -I /`
+    # returned zero security headers.)
+    location = /index.html {
+        add_header Cache-Control "no-cache, no-store, must-revalidate" always;
+        add_header X-Content-Type-Options "nosniff" always;
+        add_header X-Frame-Options "SAMEORIGIN" always;
+        add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+    }
+
+    location / {
+        # Cheap insurance only. src/App.js uses HashRouter, so routes live in
+        # the URL fragment (#/dashboard) and the server only ever sees "/" —
+        # a deep link cannot normally reach nginx as a real path.
+        # (public/_redirects is a Cloudflare Pages file; nginx ignores it.)
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Basic hardening. No CSP: the CoreUI bundle and chart.js rely on inline
+    # styles, so a meaningful policy needs testing rather than a guess here.
+    #
+    # These cover responses from locations that declare no add_header of their
+    # own. nginx's add_header does NOT merge: any location with its own
+    # add_header inherits none of these, which is why the /assets/ and
+    # = /index.html blocks above repeat them verbatim. Keep the three lists in
+    # sync when changing any of them.
+    add_header X-Content-Type-Options "nosniff" always;
+    add_header X-Frame-Options "SAMEORIGIN" always;
+    add_header Referrer-Policy "strict-origin-when-cross-origin" always;
+}

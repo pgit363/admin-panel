@@ -112,9 +112,11 @@ const _nav = [
     to: '/products',
     icon: <CIcon icon={cilTask} customClassName="nav-icon" />,
     items: [
+      { component: CNavItem, name: 'Vendor Directory', to: '/vendors' },
       { component: CNavItem, name: '1. Users', to: '/users' },
       { component: CNavItem, name: '2. Role Requests', to: '/role-requests' },
       { component: CNavItem, name: '3. Site Submissions', to: '/submissions' },
+      { component: CNavItem, name: 'Verifications', to: '/verifications' },
       { component: CNavItem, name: '4. Product Moderation', to: '/products' },
       { component: CNavItem, name: 'Product Categories', to: '/product-categories' },
       { component: CNavItem, name: 'Plans', to: '/plans' },
