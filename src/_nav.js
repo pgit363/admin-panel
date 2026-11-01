@@ -4,6 +4,7 @@ import {
   cilBell,
   cilCalculator,
   cilChartPie,
+  cilCompass,
   cilCursor,
   cilDescription,
   cilDrop,
@@ -98,6 +99,21 @@ const _nav = [
       { component: CNavItem, name: 'Banners', to: '/banners' },
       { component: CNavItem, name: 'Packages', to: '/banner-packages' },
       { component: CNavItem, name: 'Placements', to: '/banner-placements' },
+    ],
+  },
+  {
+    // The first four screens of the planner: whether it is healthy and what it
+    // costs, what happened to one traveller's trip, the knobs that avoid a
+    // deploy, and the quota when someone writes in.
+    component: CNavGroup,
+    name: 'AI Trip Planner',
+    to: '/ai',
+    icon: <CIcon icon={cilCompass} customClassName="nav-icon" />,
+    items: [
+      { component: CNavItem, name: 'Overview', to: '/ai' },
+      { component: CNavItem, name: 'Generations', to: '/ai/logs' },
+      { component: CNavItem, name: 'Settings', to: '/ai/config' },
+      { component: CNavItem, name: 'Quota & Credits', to: '/ai/credits' },
     ],
   },
   {
