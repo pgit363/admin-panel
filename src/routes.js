@@ -60,6 +60,10 @@ const VerificationModeration = React.lazy(() => import('./views/verifications/Ve
 const VendorDirectory = React.lazy(() => import('./views/vendors/VendorDirectory'))
 const Plans = React.lazy(() => import('./views/plans/Plans'))
 const Subscriptions = React.lazy(() => import('./views/plans/Subscriptions'))
+const AiOverview = React.lazy(() => import('./views/ai/AiOverview'))
+const AiGenerations = React.lazy(() => import('./views/ai/AiGenerations'))
+const AiSettings = React.lazy(() => import('./views/ai/AiSettings'))
+const AiCredits = React.lazy(() => import('./views/ai/AiCredits'))
 const AnalyticsDashboard = React.lazy(() => import('./views/analytics/AnalyticsDashboard'))
 const AnalyticsOverview = React.lazy(() => import('./views/analytics/AnalyticsOverview'))
 const TrendingContent = React.lazy(() => import('./views/analytics/TrendingContent'))
@@ -149,6 +153,10 @@ const routes = [
   { path: '/product-categories', name: 'Product Categories', element: ProductCategories },
   { path: '/plans', name: 'Plans', element: Plans },
   { path: '/subscriptions', name: 'Subscriptions', element: Subscriptions },
+  { path: '/ai', name: 'AI Trip Planner', element: AiOverview },
+  { path: '/ai/logs', name: 'Generations', element: AiGenerations },
+  { path: '/ai/config', name: 'AI Settings', element: AiSettings },
+  { path: '/ai/credits', name: 'Quota & Credits', element: AiCredits },
   { path: '/analytics', name: 'Analytics Dashboard', element: AnalyticsDashboard },
   { path: '/analytics/overview', name: 'Analytics Overview', element: AnalyticsOverview },
   { path: '/analytics/trending', name: 'Trending Content', element: TrendingContent },
